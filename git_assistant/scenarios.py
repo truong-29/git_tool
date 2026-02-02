@@ -214,22 +214,46 @@ class GitScenarios:
         self.io.log("=== KHÔI PHỤC CODE TẠM LƯU (STASH LIST) ===")
         
         ok, out = self.git.stash_list()
-        self.io.log(out)
-        
-        if not out:
-            self.io.log("Không có bản lưu tạm nào.")
+        if not ok or not out:
+            self.io.log("Không có bản lưu tạm (stash) nào.")
             return
-            
-        self.io.log("Sử dụng lệnh 'git stash pop' hoặc 'git stash apply stash@{n}' để khôi phục.")
-        idx = self.io.input("Nhập chỉ số stash muốn khôi phục (0 là mới nhất, để trống để chọn 0)")
-        if not idx: idx = "0"
+
+        # Parse stash list to friendly format
+        stashes = []
+        # Format: stash@{0}: On main: Auto stash before pull main
+        for line in out.split('\n'):
+            if not line: continue
+            try:
+                # Tách index và message
+                parts = line.split(':', 1)
+                idx_str = parts[0].strip() # stash@{0}
+                msg = parts[1].strip() if len(parts) > 1 else "(No description)"
+                stashes.append(f"{idx_str} - {msg}")
+            except:
+                stashes.append(line)
+
+        self.io.log("Danh sách các bản lưu tạm:")
+        # Sử dụng select để chọn
+        selected = self.io.select("Chọn bản lưu muốn khôi phục:", stashes)
         
-        cmd = ['stash', 'apply', f'stash@{{{idx}}}']
+        if not selected:
+            return
+
+        # Lấy stash index từ chuỗi đã chọn (stash@{n})
+        stash_id = selected.split(' - ')[0] # Lấy phần trước dấu gạch ngang
+        
+        self.io.log(f"Đang khôi phục {stash_id}...")
+        
+        # Apply stash
+        cmd = ['stash', 'apply', stash_id]
         ok, out = self.git.run_command(cmd)
+        
         if ok:
             self.io.success("Khôi phục thành công!")
-            # Hỏi có muốn drop không
-            if self.io.confirm("Bạn có muốn xóa bản lưu này khỏi danh sách không?"):
-                self.git.run_command(['stash', 'drop', f'stash@{{{idx}}}'])
+            # Hỏi drop
+            if self.io.confirm(f"Bạn có muốn xóa bản lưu {stash_id} này khỏi danh sách không?"):
+                self.git.run_command(['stash', 'drop', stash_id])
+                self.io.success("Đã xóa khỏi danh sách.")
         else:
             self.io.error(f"Lỗi khi khôi phục: {out}")
+            self.io.warning("Có thể do xung đột (conflict). Hãy kiểm tra file và resolve conflict thủ công.")
