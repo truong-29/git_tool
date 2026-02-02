@@ -82,6 +82,40 @@ class GitCore:
     def stash_list(self):
         return self.run_command(['stash', 'list'])
 
+    def get_branches(self):
+        """Lấy danh sách tất cả các branch local và remote"""
+        # Fetch trước để cập nhật danh sách remote
+        self.run_command(['fetch', '--all'], show_output=False)
+        
+        # Lấy danh sách branch
+        success, output = self.run_command(['branch', '-a'], show_output=False)
+        if not success:
+            return []
+            
+        branches = []
+        for line in output.split('\n'):
+            line = line.strip()
+            if not line: continue
+            
+            # Bỏ qua con trỏ HEAD detached
+            if "HEAD detached" in line: continue
+            
+            # Xóa dấu * và khoảng trắng (đánh dấu branch hiện tại)
+            clean_name = line.replace('*', '').strip()
+            
+            # Xử lý remote branch (remotes/origin/main -> main)
+            # Tuy nhiên, để checkout, ta nên giữ nguyên tên nếu nó là local, 
+            # hoặc chỉ lấy phần tên sau remotes/origin nếu muốn checkout tracking.
+            # Đơn giản nhất: Lấy list local branches. Nếu muốn remote, user nên checkout -b.
+            # Nhưng để switch, ta ưu tiên list local trước.
+            
+            if clean_name.startswith('remotes/'):
+                continue # Tạm thời chỉ list local branches để switch cho đơn giản
+            
+            branches.append(clean_name)
+            
+        return sorted(list(set(branches)))
+
     def current_branch(self):
         success, output = self.run_command(['rev-parse', '--abbrev-ref', 'HEAD'], show_output=False)
         if success:

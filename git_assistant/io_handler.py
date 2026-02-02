@@ -31,6 +31,10 @@ class IOHandler(ABC):
     def confirm(self, prompt):
         pass
 
+    @abstractmethod
+    def select(self, prompt, options):
+        pass
+
 class ConsoleIO(IOHandler):
     def log(self, message, color=None):
         print(message)
