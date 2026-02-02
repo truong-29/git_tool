@@ -72,6 +72,51 @@ class GuiIO(IOHandler):
         event.wait()
         return result[0]
 
+    def select(self, prompt, options):
+        result = [None]
+        event = threading.Event()
+
+        def _ask():
+            top = tk.Toplevel(self.root)
+            top.title("Lựa chọn")
+            top.geometry("400x300")
+            
+            # Make modal
+            top.transient(self.root)
+            top.grab_set()
+            
+            ttk.Label(top, text=prompt, padding=10).pack()
+            
+            listbox = tk.Listbox(top, selectmode=tk.SINGLE)
+            for opt in options:
+                listbox.insert(tk.END, opt)
+            listbox.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+            
+            def on_select():
+                sel = listbox.curselection()
+                if sel:
+                    result[0] = options[sel[0]]
+                    top.destroy()
+                    event.set()
+                else:
+                    messagebox.showwarning("Chưa chọn", "Vui lòng chọn một mục!", parent=top)
+
+            def on_cancel():
+                top.destroy()
+                event.set() # result is None
+
+            btn_frame = ttk.Frame(top, padding=10)
+            btn_frame.pack(fill=tk.X)
+            ttk.Button(btn_frame, text="Chọn", command=on_select).pack(side=tk.LEFT, padx=5)
+            ttk.Button(btn_frame, text="Hủy", command=on_cancel).pack(side=tk.RIGHT, padx=5)
+            
+            # Handle close window X button
+            top.protocol("WM_DELETE_WINDOW", on_cancel)
+
+        self.root.after(0, _ask)
+        event.wait()
+        return result[0]
+
 class GitGuiApp:
     def __init__(self, root):
         self.root = root
@@ -100,6 +145,7 @@ class GitGuiApp:
             ("Đẩy code (Push)", self.run_push),
             ("Kéo code (Pull)", self.run_pull),
             ("Đồng bộ an toàn (Sync Main)", self.run_sync),
+            ("Chuyển nhánh (Switch Branch)", self.run_switch),
             ("Tạo tính năng mới (Feature)", self.run_feature),
             ("Xem trạng thái (Status)", self.run_status),
             ("Quản lý Stash (Fix Lost Code)", self.run_stash),
@@ -141,6 +187,9 @@ class GitGuiApp:
 
     def run_sync(self):
         self.scenarios.workflow_sync_main()
+
+    def run_switch(self):
+        self.scenarios.workflow_switch_branch()
 
     def run_feature(self):
         self.scenarios.workflow_new_feature()

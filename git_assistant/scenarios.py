@@ -175,6 +175,40 @@ class GitScenarios:
         self.git.checkout_new(new_branch)
         self.io.success(f"Đã chuyển sang nhánh {new_branch}. Bạn có thể bắt đầu code!")
 
+    def workflow_switch_branch(self):
+        """Chuyển đổi giữa các nhánh có sẵn"""
+        self.io.log("=== CHUYỂN NHÁNH (SWITCH BRANCH) ===")
+        
+        # 1. Check status (warn if changes exist)
+        if self.git.has_changes():
+            self.io.warning("CẢNH BÁO: Bạn đang có thay đổi chưa commit. Việc chuyển nhánh có thể bị chặn hoặc gây conflict.")
+            if self.io.confirm("Bạn có muốn Stash (lưu tạm) thay đổi trước khi chuyển không?"):
+                self.git.stash(f"Stash before switch {self.git.current_branch()}")
+                self.io.success("Đã stash thay đổi.")
+        
+        # 2. Get branches
+        branches = self.git.get_branches()
+        current = self.git.current_branch()
+        
+        # Loại bỏ branch hiện tại khỏi danh sách chọn (để đỡ rối)
+        if current in branches:
+            branches.remove(current)
+            
+        if not branches:
+            self.io.warning("Không tìm thấy nhánh nào khác để chuyển.")
+            return
+
+        # 3. Select branch
+        self.io.log(f"Nhánh hiện tại: {current}")
+        selected_branch = self.io.select("Chọn nhánh muốn chuyển sang:", branches)
+        
+        if selected_branch:
+            ok, out = self.git.checkout(selected_branch)
+            if ok:
+                self.io.success(f"Đã chuyển sang nhánh: {selected_branch}")
+            else:
+                self.io.error(f"Lỗi khi chuyển nhánh: {out}")
+
     def workflow_fix_conflict_stash(self):
         """Hỗ trợ xử lý khi kéo code về bị mất code (do stash chưa pop)"""
         self.io.log("=== KHÔI PHỤC CODE TẠM LƯU (STASH LIST) ===")
