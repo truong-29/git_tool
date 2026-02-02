@@ -57,20 +57,39 @@ class GitScenarios:
         self.git.fetch()
         
         # 2. Check changes local
+        stashed = False
         if self.git.has_changes():
             self.io.warning("Bạn đang có các thay đổi chưa commit!")
             if self.io.confirm("Bạn có muốn lưu tạm (stash) trước khi pull không?"):
                 self.git.stash(f"Auto stash before pull {self.git.current_branch()}")
                 self.io.success("Đã stash thay đổi.")
+                stashed = True
         
         # 3. Pull
         ok, out = self.git.pull()
         if ok:
             self.io.success("Cập nhật code thành công!")
             self.io.log(out)
+            # Hỏi pop stash nếu pull thành công
+            if stashed:
+                if self.io.confirm("Pull thành công. Bạn có muốn khôi phục lại thay đổi đang làm dở (Pop Stash) không?"):
+                    p_ok, p_out = self.git.stash_pop()
+                    if p_ok: 
+                        self.io.success("Đã khôi phục code cũ.")
+                    else: 
+                        self.io.warning("Có xung đột khi khôi phục stash. Hãy kiểm tra file.")
         else:
             self.io.error(f"Lỗi pull: {out}")
-            self.io.log("Có thể xảy ra xung đột (conflict). Hãy kiểm tra thủ công.")
+            self.io.log("Có thể xảy ra xung đột hoặc lỗi mạng.")
+            # Hỏi pop stash nếu pull thất bại
+            if stashed:
+                self.io.warning("Quá trình Pull gặp lỗi. Code của bạn đang được lưu trong Stash.")
+                if self.io.confirm("Bạn có muốn khôi phục lại trạng thái cũ (Pop Stash) ngay bây giờ không?"):
+                    p_ok, p_out = self.git.stash_pop()
+                    if p_ok:
+                        self.io.success("Đã khôi phục trạng thái ban đầu.")
+                    else:
+                        self.io.error(f"Lỗi khi khôi phục: {p_out}")
 
     def workflow_sync_main(self):
         """Luồng đồng bộ: Stash -> Checkout Main -> Pull -> Checkout Back -> Merge Main -> Pop Stash"""
@@ -97,7 +116,17 @@ class GitScenarios:
         # 2. Checkout Main & Pull
         self.io.log(f"Chuyển sang {main_branch} để cập nhật...")
         self.git.checkout(main_branch)
-        self.git.pull()
+        
+        # Pull main
+        p_ok, p_out = self.git.pull()
+        if not p_ok:
+            self.io.error(f"Lỗi khi pull {main_branch}: {p_out}")
+            self.io.warning("Đang quay lại nhánh cũ...")
+            self.git.checkout(current_branch)
+            if has_changes:
+                self.io.log("Đang khôi phục stash...")
+                self.git.stash_pop()
+            return
 
         # 3. Checkout Back
         self.io.log(f"Quay lại nhánh {current_branch}...")
@@ -111,7 +140,9 @@ class GitScenarios:
         else:
             self.io.error(f"Merge thất bại (Conflict): {m_out}")
             self.io.warning("Vui lòng giải quyết xung đột thủ công trước khi tiếp tục.")
-            return # Dừng ở đây nếu conflict
+            # Lưu ý: Khi merge conflict, ta không pop stash ngay vì sẽ làm rối thêm.
+            # User cần fix conflict xong mới pop stash thủ công.
+            return 
 
         # 5. Pop Stash
         if has_changes:
