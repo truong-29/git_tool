@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Git Assistant Tool
-Một công cụ hỗ trợ Git workflows chuẩn cho người mới dsdsd.
-Được viết lại theo mô hình module hóa và hỗ trợ GUI.
+Một công cụ hỗ trợ Git workflows chuẩn cho người mới.
+Được viết lại theo mô hình module hóa và hỗ trợ GUIvcfssd.
 """
 
 import sys
