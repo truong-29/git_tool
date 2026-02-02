@@ -22,15 +22,30 @@ class GuiIO(IOHandler):
 
     def error(self, message):
         self.log(f"ERROR: {message}")
-        self.root.after(0, lambda: messagebox.showerror("Lỗi", message))
+        event = threading.Event()
+        def _show():
+            messagebox.showerror("Lỗi", message, parent=self.root)
+            event.set()
+        self.root.after(0, _show)
+        event.wait()
 
     def success(self, message):
         self.log(f"SUCCESS: {message}")
-        self.root.after(0, lambda: messagebox.showinfo("Thành công", message))
+        event = threading.Event()
+        def _show():
+            messagebox.showinfo("Thành công", message, parent=self.root)
+            event.set()
+        self.root.after(0, _show)
+        event.wait()
 
     def warning(self, message):
         self.log(f"WARNING: {message}")
-        self.root.after(0, lambda: messagebox.showwarning("Cảnh báo", message))
+        event = threading.Event()
+        def _show():
+            messagebox.showwarning("Cảnh báo", message, parent=self.root)
+            event.set()
+        self.root.after(0, _show)
+        event.wait()
 
     def input(self, prompt):
         # Use a threading event/queue to get result from main thread
