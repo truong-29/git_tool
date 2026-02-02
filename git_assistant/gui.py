@@ -33,10 +33,29 @@ class GuiIO(IOHandler):
         self.root.after(0, lambda: messagebox.showwarning("Cảnh báo", message))
 
     def input(self, prompt):
-        return simpledialog.askstring("Nhập thông tin", prompt, parent=self.root)
+        # Use a threading event/queue to get result from main thread
+        result = [None]
+        event = threading.Event()
+        
+        def _ask():
+            result[0] = simpledialog.askstring("Nhập thông tin", prompt, parent=self.root)
+            event.set()
+            
+        self.root.after(0, _ask)
+        event.wait() # Block thread until user inputs
+        return result[0]
 
     def confirm(self, prompt):
-        return messagebox.askyesno("Xác nhận", prompt, parent=self.root)
+        result = [False]
+        event = threading.Event()
+        
+        def _ask():
+            result[0] = messagebox.askyesno("Xác nhận", prompt, parent=self.root)
+            event.set()
+            
+        self.root.after(0, _ask)
+        event.wait()
+        return result[0]
 
 class GitGuiApp:
     def __init__(self, root):
